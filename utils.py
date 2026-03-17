@@ -2,6 +2,7 @@ import os
 import requests
 import praw
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import streamlit as st
 
 # ─── Load secrets ─────────────────────────────────────────────
 def get_secret(key):
@@ -40,67 +41,64 @@ WEATHER_DESC = {
 
 
 # ─── CURRENT WEATHER ─────────────────────────────────────────
+@st.cache_data(ttl=3600)
 def get_weather(lat, lon):
     try:
+        key = get_secret("OPENWEATHER_API_KEY")
         url = (
-            f"https://api.open-meteo.com/v1/forecast"
-            f"?latitude={lat}&longitude={lon}"
-            f"&current=temperature_2m,relative_humidity_2m,precipitation,windspeed_10m,weathercode"
-            f"&timezone=auto"
+            f"https://api.openweathermap.org/data/2.5/weather"
+            f"?lat={lat}&lon={lon}&appid={key}&units=metric"
         )
-        r = requests.get(url, timeout=8)
+        r    = requests.get(url, timeout=10)
         data = r.json()
-        current = data.get("current", {})
-        code = current.get("weathercode", 0)
         return {
-            "temperature":  current.get("temperature_2m", "N/A"),
-            "humidity":     current.get("relative_humidity_2m", "N/A"),
-            "precipitation":current.get("precipitation", 0),
-            "windspeed":    current.get("windspeed_10m", "N/A"),
-            "description":  WEATHER_DESC.get(code, "Unknown"),
+            "temperature":  round(data["main"]["temp"], 1),
+            "humidity":     data["main"]["humidity"],
+            "precipitation":data.get("rain", {}).get("1h", 0),
+            "windspeed":    round(data["wind"]["speed"] * 3.6, 1),
+            "description":  data["weather"][0]["description"].title() + " 🌤️",
         }
     except Exception as e:
         return {"error": str(e)}
 
 
 # ─── 7-DAY FORECAST ──────────────────────────────────────────
+@st.cache_data(ttl=3600)
 def get_forecast(lat, lon):
     try:
-        url = (
-            f"https://api.open-meteo.com/v1/forecast"
-            f"?latitude={lat}&longitude={lon}"
-            f"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,"
-            f"weathercode,windspeed_10m_max"
-            f"&timezone=auto&forecast_days=7"
+        key  = get_secret("OPENWEATHER_API_KEY")
+        url  = (
+            f"https://api.openweathermap.org/data/2.5/forecast"
+            f"?lat={lat}&lon={lon}&appid={key}&units=metric&cnt=56"
         )
-        r = requests.get(url, timeout=15, verify=True)
-        r.raise_for_status()
-        data  = r.json()
-        daily = data.get("daily", {})
-        dates    = daily.get("time", [])
-        temp_max = daily.get("temperature_2m_max", [])
-        temp_min = daily.get("temperature_2m_min", [])
-        precip   = daily.get("precipitation_sum", [])
-        codes    = daily.get("weathercode", [])
-        wind     = daily.get("windspeed_10m_max", [])
+        r    = requests.get(url, timeout=10)
+        data = r.json()
+
+        # Group by date — take max/min/precip per day
+        from collections import defaultdict
+        days = defaultdict(lambda: {"temps":[], "precip":0, "wind":[], "desc":"Clear sky ☀️"})
+        for item in data["list"]:
+            date = item["dt_txt"].split(" ")[0]
+            days[date]["temps"].append(item["main"]["temp"])
+            days[date]["precip"] += item.get("rain", {}).get("3h", 0)
+            days[date]["wind"].append(item["wind"]["speed"] * 3.6)
+            days[date]["desc"] = item["weather"][0]["description"].title() + " 🌤️"
+
         forecast = []
-        for i in range(len(dates)):
-            code = codes[i] if i < len(codes) else 0
+        for date, d in list(days.items())[:7]:
             forecast.append({
-                "date":     dates[i],
-                "temp_max": temp_max[i] if i < len(temp_max) else 20,
-                "temp_min": temp_min[i] if i < len(temp_min) else 15,
-                "precip":   precip[i]   if i < len(precip)   else 0,
-                "wind":     wind[i]     if i < len(wind)      else 0,
-                "desc":     WEATHER_DESC.get(code, "Unknown"),
-                "code":     code,
+                "date":     date,
+                "temp_max": round(max(d["temps"]), 1),
+                "temp_min": round(min(d["temps"]), 1),
+                "precip":   round(d["precip"], 1),
+                "wind":     round(sum(d["wind"]) / len(d["wind"]), 1),
+                "desc":     d["desc"],
+                "code":     0,
             })
         return forecast
     except Exception as e:
-        import streamlit as st
         st.error(f"Forecast error: {str(e)}")
         return []
-
 
 # ─── REDDIT ──────────────────────────────────────────────────
 def get_reddit_posts(country_subs, keywords, limit=12):
