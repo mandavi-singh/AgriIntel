@@ -73,7 +73,8 @@ def get_forecast(lat, lon):
             f"weathercode,windspeed_10m_max"
             f"&timezone=auto&forecast_days=7"
         )
-        r = requests.get(url, timeout=8)
+        r = requests.get(url, timeout=15, verify=True)
+        r.raise_for_status()
         data  = r.json()
         daily = data.get("daily", {})
         dates    = daily.get("time", [])
@@ -87,15 +88,17 @@ def get_forecast(lat, lon):
             code = codes[i] if i < len(codes) else 0
             forecast.append({
                 "date":     dates[i],
-                "temp_max": temp_max[i] if i < len(temp_max) else "N/A",
-                "temp_min": temp_min[i] if i < len(temp_min) else "N/A",
+                "temp_max": temp_max[i] if i < len(temp_max) else 20,
+                "temp_min": temp_min[i] if i < len(temp_min) else 15,
                 "precip":   precip[i]   if i < len(precip)   else 0,
-                "wind":     wind[i]     if i < len(wind)      else "N/A",
+                "wind":     wind[i]     if i < len(wind)      else 0,
                 "desc":     WEATHER_DESC.get(code, "Unknown"),
                 "code":     code,
             })
         return forecast
-    except Exception:
+    except Exception as e:
+        import streamlit as st
+        st.error(f"Forecast error: {str(e)}")
         return []
 
 

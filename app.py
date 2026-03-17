@@ -155,6 +155,10 @@ with tab3:
     st.markdown(f"## 🌤️ 7-Day Forecast — {country['flag']} {selected_country}")
     with st.spinner("Fetching forecast..."):
         forecast = get_forecast(country['lat'], country['lon'])
+    
+    if not forecast:
+        st.error("Could not fetch forecast data. Please try again in a few seconds.")
+        st.info("This may be a temporary network issue on Streamlit Cloud.")
     if forecast:
         cols = st.columns(7)
         for i, day in enumerate(forecast):
