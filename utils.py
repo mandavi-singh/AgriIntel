@@ -182,9 +182,14 @@ def calculate_risk_score(reddit_posts, news_articles, weather):
     if isinstance(weather, dict) and "error" not in weather:
         precip = weather.get("precipitation", 0) or 0
         temp   = weather.get("temperature", 20)  or 20
-        if precip > 20:                 weather_risk = -0.4
-        elif precip == 0 and temp > 38: weather_risk = -0.3
-        elif precip > 5:                weather_risk =  0.1
+        try:
+            precip = float(precip) if precip != "N/A" else 0
+            temp   = float(temp)   if temp   != "N/A" else 20
+            if precip > 20:                 weather_risk = -0.4
+            elif precip == 0 and temp > 38: weather_risk = -0.3
+            elif precip > 5:                weather_risk =  0.1
+        except:
+            weather_risk = 0
         scores.append(weather_risk)
     if not scores:
         return 50, "⚪ No Data"
