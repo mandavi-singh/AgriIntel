@@ -1,0 +1,43 @@
+# ─── Secrets & API Keys ──────────────────────────────────────
+.streamlit/secrets.toml
+.env
+
+# ─── Python cache ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ─── Virtual Environment ─────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+
+# ─── ML Model files (large files) ────────────────────────────
+model.pkl
+encoders.pkl
+
+# ─── Jupyter Notebooks ───────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── OS files ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE files ───────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Temp files ──────────────────────────────────────────────
+*.tmp
+*.temp
