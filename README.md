@@ -132,6 +132,11 @@ India, USA, China, Brazil, Australia, Russia, France, Argentina, Nigeria, Indone
 - Mandi prices are simulated for demonstration — for real prices, integrate Agmarknet API
 
 ---
+## 🌐 Live Demo
+
+👉 **[https://agriintel-52gjqfeoxxhqu4xwltsx8f.streamlit.app/](https://agriintel-52gjqfeoxxhqu4xwltsx8f.streamlit.app/)**
+
+---
 
 ## 👩‍💻 Built By
 
