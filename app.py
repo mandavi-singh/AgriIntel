@@ -10,7 +10,7 @@ from country_data  import COUNTRY_DATA
 from utils         import (get_weather, get_forecast, get_reddit_posts, get_news,
                             calculate_risk_score, ask_gemini,
                             detect_crop_disease, get_mandi_prices, get_all_mandi_crops)
-from ml_model      import predict_yield, get_averages, generate_data
+from ml_model      import predict_yield, get_averages, get_options, get_metrics, get_eda_data, get_performance_data
 from crop_calendar import get_calendar, get_available_crops, get_available_seasons
 from india_states  import INDIA_STATES
 from yield_history import get_yield_history, get_available_crops_history
@@ -155,10 +155,6 @@ with tab3:
     st.markdown(f"## 🌤️ 7-Day Forecast — {country['flag']} {selected_country}")
     with st.spinner("Fetching forecast..."):
         forecast = get_forecast(country['lat'], country['lon'])
-    
-    if not forecast:
-        st.error("Could not fetch forecast data. Please try again in a few seconds.")
-        st.info("This may be a temporary network issue on Streamlit Cloud.")
     if forecast:
         cols = st.columns(7)
         for i, day in enumerate(forecast):
@@ -201,73 +197,238 @@ with tab3:
         for tip in tips:    st.markdown(f"- {tip}")
 
 # ════════════════════════════════════════════════════════════
-# TAB 4 — YIELD PREDICTION + HISTORY
+# TAB 4 — YIELD PREDICTION
 # ════════════════════════════════════════════════════════════
 with tab4:
     st.markdown("## 🌾 Crop Yield Prediction")
+    st.caption("Trained on real India crop yield data (19,380 records) — R² = 94.45%")
+
+    # Load options and metrics
+    with st.spinner("Loading model..."):
+        options = get_options()
+        metrics = get_metrics()
+
+    # Model metrics bar
+    m1,m2,m3,m4 = st.columns(4)
+    m1.markdown(f"<div class='metric-card'><small>🎯 R² Score</small><br><b style='font-size:1.3em;color:#2e7d32'>{metrics['r2']*100:.1f}%</b></div>", unsafe_allow_html=True)
+    m2.markdown(f"<div class='metric-card'><small>📉 MAE</small><br><b style='font-size:1.3em'>{metrics['mae']} t/ha</b></div>", unsafe_allow_html=True)
+    m3.markdown(f"<div class='metric-card'><small>📊 RMSE</small><br><b style='font-size:1.3em'>{metrics['rmse']} t/ha</b></div>", unsafe_allow_html=True)
+    m4.markdown(f"<div class='metric-card'><small>🗃️ Training Data</small><br><b style='font-size:1.3em'>{metrics['train_size']:,}</b></div>", unsafe_allow_html=True)
+
+    st.divider()
     col1, col2 = st.columns([1,1])
     with col1:
         st.markdown("### 📋 Farm Details")
-        crop       = st.selectbox("🌱 Crop", ["Rice","Wheat","Maize","Cotton","Sugarcane","Barley","Soybean","Tomato","Potato","Carrot"])
-        irrigation = st.selectbox("💧 Irrigation", ["Drip","Sprinkler","Flood","Rain-fed","Manual"])
-        soil       = st.selectbox("🏔️ Soil", ["Loamy","Clay","Sandy","Silty","Peaty","Chalky"])
-        season     = st.selectbox("📅 Season", ["Kharif","Rabi","Zaid"])
-        area       = st.number_input("🌍 Farm Area (acres)", 0.1, 1000.0, 10.0, 0.5)
-        fertilizer = st.number_input("🧪 Fertilizer (tons)", 0.0, 50.0, 5.0, 0.5)
-        pesticide  = st.number_input("🐛 Pesticide (kg)", 0.0, 30.0, 2.0, 0.5)
-        water      = st.number_input("💦 Water (cubic m)", 100.0, 200000.0, 10000.0, 500.0)
+        crop       = st.selectbox("🌱 Crop", options['crops'])
+        season     = st.selectbox("📅 Season", options['seasons'])
+        state      = st.selectbox("📍 State", options['states'])
+        area       = st.number_input("🌍 Farm Area (hectares)", 0.5, 50000000.0, 1000.0, 100.0)
+        rainfall   = st.number_input("🌧️ Annual Rainfall (mm)", 0.0, 5000.0, 800.0, 50.0)
+        fertilizer = st.number_input("🧪 Fertilizer Used (tons)", 0.0, 10000000.0, 5000.0, 100.0)
+        pesticide  = st.number_input("🐛 Pesticide Used (kg)", 0.0, 1000000.0, 500.0, 50.0)
         predict_btn = st.button("🔍 Predict Yield", use_container_width=True, type="primary")
+
     with col2:
         st.markdown("### 📈 Results")
         if predict_btn:
-            with st.spinner("Calculating..."):
-                predicted = predict_yield(crop, irrigation, soil, season, area, fertilizer, pesticide, water)
-                crop_avg, irr_avg, season_avg = get_averages()
+            with st.spinner("Predicting..."):
+                predicted = predict_yield(crop, season, state, area, rainfall, fertilizer, pesticide)
+                crop_avg, season_avg, state_avg = get_averages()
             if predicted:
-                st.markdown(f"<div style='background:linear-gradient(135deg,#1b5e20,#4caf50);color:white;border-radius:14px;padding:20px;text-align:center;margin-bottom:14px'><div style='font-size:0.9em;opacity:0.9'>Predicted Yield</div><div style='font-size:2.8em;font-weight:bold'>{predicted}</div><div style='font-size:0.9em;opacity:0.9'>tons/hectare</div></div>", unsafe_allow_html=True)
-                comp = pd.DataFrame({"Category":["Your Prediction",f"{crop} Avg",f"{irrigation} Avg",f"{season} Avg"],
-                    "Yield":[predicted,round(crop_avg.get(crop,0),2),round(irr_avg.get(irrigation,0),2),round(season_avg.get(season,0),2)]})
-                fig = px.bar(comp,x="Category",y="Yield",color="Category",color_discrete_sequence=["#2e7d32","#81c784","#a5d6a7","#c8e6c9"],text="Yield")
-                fig.update_traces(texttemplate='%{text:.1f}',textposition='outside')
-                fig.update_layout(showlegend=False,height=290,margin=dict(t=10,b=10))
+                color = "#2e7d32" if predicted >= crop_avg.get(crop, 0) else "#e53935"
+                st.markdown(f"""
+                <div style='background:linear-gradient(135deg,#1b5e20,#4caf50);color:white;
+                            border-radius:14px;padding:20px;text-align:center;margin-bottom:14px'>
+                    <div style='font-size:0.9em;opacity:0.9'>Predicted Yield</div>
+                    <div style='font-size:2.8em;font-weight:bold'>{predicted}</div>
+                    <div style='font-size:0.9em;opacity:0.9'>tons / hectare</div>
+                </div>""", unsafe_allow_html=True)
+
+                comp = pd.DataFrame({
+                    "Category": ["Your Prediction", f"{crop} Avg", f"{season} Avg", f"{state} Avg"],
+                    "Yield":    [predicted,
+                                 round(crop_avg.get(crop, 0), 3),
+                                 round(season_avg.get(season, 0), 3),
+                                 round(state_avg.get(state, 0), 3)]
+                })
+                fig = px.bar(comp, x="Category", y="Yield", color="Category",
+                             color_discrete_sequence=["#2e7d32","#81c784","#a5d6a7","#c8e6c9"],
+                             text="Yield")
+                fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+                fig.update_layout(showlegend=False, height=290, margin=dict(t=10,b=10),
+                                  yaxis_title="Yield (tons/ha)", plot_bgcolor='white', paper_bgcolor='white')
                 st.plotly_chart(fig, use_container_width=True)
+
+                # Recommendations
+                st.markdown("### 💡 Recommendations")
                 recs = []
-                if predicted < crop_avg.get(crop,0): recs.append("📌 Below average — try higher-yield variety")
-                if irrigation=="Rain-fed":            recs.append("💧 Drip irrigation can boost yield ~15%")
-                if fertilizer<5:                      recs.append("🧪 Low fertilizer — balanced NPK can improve output")
-                if soil in ["Sandy","Chalky"]:        recs.append("🏔️ Add organic matter to improve soil retention")
-                if not recs:                          recs.append("✅ Inputs well-optimized for this crop & season!")
-                for r in recs: st.markdown(f"- {r}")
+                if predicted < crop_avg.get(crop, 0):
+                    recs.append("📌 Below crop average — consider high-yield varieties")
+                if rainfall < 500:
+                    recs.append("🌧️ Low rainfall area — ensure proper irrigation")
+                if fertilizer < 1000:
+                    recs.append("🧪 Low fertilizer — balanced NPK can improve yield")
+                if predicted > crop_avg.get(crop, 0):
+                    recs.append("✅ Above average yield expected — maintain current practices")
+                if not recs:
+                    recs.append("✅ Inputs look well-optimized!")
+                for r in recs:
+                    st.markdown(f"- {r}")
+            else:
+                st.error("Could not predict. Please check inputs.")
         else:
-            st.markdown("<div style='text-align:center;padding:50px 20px;color:#888'><div style='font-size:2.5em'>🌾</div><div>Fill details and click Predict</div></div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div style='text-align:center;padding:50px 20px;color:#888'>
+                <div style='font-size:2.5em'>🌾</div>
+                <div>Fill in farm details and click <b>Predict Yield</b></div>
+            </div>""", unsafe_allow_html=True)
 
     st.divider()
-    st.markdown("### 📊 Historical Yield Trends")
+    st.markdown("### 📊 Dataset Overview")
+    df_eda = get_eda_data()
+    view   = st.radio("View by:", ["Crop","Season","State"], horizontal=True, key="eda_view")
+    avg_df = df_eda.groupby(view)['Yield'].mean().reset_index().sort_values('Yield', ascending=False).head(15)
+    avg_df.columns = [view, "Avg Yield (t/ha)"]
+    fig_eda = px.bar(avg_df, x=view, y="Avg Yield (t/ha)", color=view,
+                     color_discrete_sequence=px.colors.qualitative.Set2)
+    fig_eda.update_layout(showlegend=False, height=320, margin=dict(t=10,b=10),
+                          plot_bgcolor='white', paper_bgcolor='white')
+    st.plotly_chart(fig_eda, use_container_width=True)
+
+    st.divider()
+    st.markdown("### 📈 Historical Yield Trends")
     hist_crops = get_available_crops_history(selected_country)
     if hist_crops:
         col_h1, col_h2 = st.columns([1,3])
         with col_h1:
-            selected_hist_crop = st.selectbox("Select crop for history", hist_crops, key="hist_crop")
+            selected_hist_crop = st.selectbox("Select crop", hist_crops, key="hist_crop")
             compare_crops      = st.multiselect("Compare crops", hist_crops, default=hist_crops[:2], key="compare")
         with col_h2:
             if selected_hist_crop:
                 df_hist = get_yield_history(selected_country, selected_hist_crop)
                 if df_hist is not None:
                     fig_h = px.line(df_hist, x="Year", y="Yield", markers=True,
-                        title=f"{selected_hist_crop} Yield Trend — {selected_country} (2015–2024)",
+                        title=f"{selected_hist_crop} — {selected_country} (2015–2024)",
                         color_discrete_sequence=["#2e7d32"])
-                    fig_h.update_layout(height=280,margin=dict(t=30,b=10),yaxis_title="Yield (tons/ha)",plot_bgcolor='white',paper_bgcolor='white')
+                    fig_h.update_layout(height=260, margin=dict(t=30,b=10),
+                                        yaxis_title="Yield (t/ha)", plot_bgcolor='white', paper_bgcolor='white')
                     st.plotly_chart(fig_h, use_container_width=True)
-            if len(compare_crops)>=2:
+            if len(compare_crops) >= 2:
                 fig_c = go.Figure()
                 for c in compare_crops:
                     df_c = get_yield_history(selected_country, c)
                     if df_c is not None:
-                        fig_c.add_trace(go.Scatter(x=df_c['Year'],y=df_c['Yield'],name=c,mode='lines+markers'))
-                fig_c.update_layout(height=280,title=f"Crop Comparison — {selected_country}",margin=dict(t=30,b=10),yaxis_title="Yield (tons/ha)",plot_bgcolor='white',paper_bgcolor='white')
+                        fig_c.add_trace(go.Scatter(x=df_c['Year'], y=df_c['Yield'], name=c, mode='lines+markers'))
+                fig_c.update_layout(height=260, title=f"Crop Comparison — {selected_country}",
+                                    margin=dict(t=30,b=10), yaxis_title="Yield (t/ha)",
+                                    plot_bgcolor='white', paper_bgcolor='white')
                 st.plotly_chart(fig_c, use_container_width=True)
     else:
         st.info(f"Historical data not available for {selected_country} yet.")
+
+    st.divider()
+    with st.expander("🔬 Model Performance & Analysis", expanded=False):
+        st.markdown("### 🤖 Random Forest — Model Evaluation")
+        st.caption("Trained on 19,380 real India crop yield records")
+
+        with st.spinner("Loading performance data..."):
+            perf    = get_performance_data()
+            metrics = get_metrics()
+
+        c1,c2,c3,c4,c5 = st.columns(5)
+        c1.markdown(f"<div class='metric-card'><small>🎯 R² Score</small><br><b style='font-size:1.4em;color:#2e7d32'>{metrics['r2']*100:.2f}%</b></div>", unsafe_allow_html=True)
+        c2.markdown(f"<div class='metric-card'><small>📉 MAE</small><br><b style='font-size:1.4em'>{metrics['mae']}</b><br><small>t/ha</small></div>", unsafe_allow_html=True)
+        c3.markdown(f"<div class='metric-card'><small>📊 RMSE</small><br><b style='font-size:1.4em'>{metrics['rmse']}</b><br><small>t/ha</small></div>", unsafe_allow_html=True)
+        c4.markdown(f"<div class='metric-card'><small>📐 MAPE</small><br><b style='font-size:1.4em'>{metrics['mape']}%</b></div>", unsafe_allow_html=True)
+        c5.markdown(f"<div class='metric-card'><small>🔁 CV R²</small><br><b style='font-size:1.4em'>{perf['cv_mean']*100:.2f}%</b><br><small>±{perf['cv_std']*100:.2f}%</small></div>", unsafe_allow_html=True)
+
+        st.divider()
+        col_p1, col_p2 = st.columns(2)
+
+        with col_p1:
+            st.markdown("#### 📍 Actual vs Predicted")
+            fig_ap = go.Figure()
+            fig_ap.add_trace(go.Scatter(x=perf['y_test'], y=perf['y_pred'],
+                mode='markers', marker=dict(color='#2e7d32', opacity=0.5, size=5), name='Predictions'))
+            max_val = float(max(perf['y_test'].max(), perf['y_pred'].max()))
+            fig_ap.add_trace(go.Scatter(x=[0, max_val], y=[0, max_val],
+                mode='lines', line=dict(color='#e53935', dash='dash', width=2), name='Perfect'))
+            fig_ap.update_layout(height=320, margin=dict(t=10,b=10),
+                xaxis_title="Actual Yield (t/ha)", yaxis_title="Predicted Yield (t/ha)",
+                plot_bgcolor='white', paper_bgcolor='white', legend=dict(orientation="h", y=1.1))
+            st.plotly_chart(fig_ap, use_container_width=True)
+            st.caption("Points closer to red line = better predictions")
+
+        with col_p2:
+            st.markdown("#### 📊 Residual Distribution")
+            fig_res = go.Figure()
+            fig_res.add_trace(go.Histogram(x=perf['residuals'], nbinsx=40,
+                marker_color='#4caf50', opacity=0.75))
+            fig_res.add_vline(x=0, line_dash="dash", line_color="#e53935", line_width=2)
+            fig_res.update_layout(height=320, margin=dict(t=10,b=10),
+                xaxis_title="Residual (Actual - Predicted)", yaxis_title="Count",
+                plot_bgcolor='white', paper_bgcolor='white', showlegend=False)
+            st.plotly_chart(fig_res, use_container_width=True)
+            st.caption("Good model = residuals centered around 0")
+
+        st.divider()
+        col_p3, col_p4 = st.columns(2)
+
+        with col_p3:
+            st.markdown("#### 🏆 Feature Importance")
+            feat_df = perf['feat_imp'].reset_index()
+            feat_df.columns = ['Feature', 'Importance']
+            feat_df['Pct'] = (feat_df['Importance'] * 100).round(2)
+            fig_fi = px.bar(feat_df, x='Importance', y='Feature', orientation='h',
+                color='Importance', color_continuous_scale=["#c8e6c9","#2e7d32"], text='Pct')
+            fig_fi.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+            fig_fi.update_layout(height=300, margin=dict(t=10,b=10),
+                showlegend=False, coloraxis_showscale=False,
+                plot_bgcolor='white', paper_bgcolor='white')
+            st.plotly_chart(fig_fi, use_container_width=True)
+
+        with col_p4:
+            st.markdown("#### 🔁 Cross-Validation R² (5-Fold)")
+            cv_df = pd.DataFrame({
+                'Fold': [f'Fold {i+1}' for i in range(len(perf['cv_scores']))],
+                'R2':   [round(s, 4) for s in perf['cv_scores']],
+                'Pct':  [round(s*100, 2) for s in perf['cv_scores']]
+            })
+            fig_cv = px.bar(cv_df, x='Fold', y='R2', color='R2',
+                color_continuous_scale=["#a5d6a7","#1b5e20"], text='Pct')
+            fig_cv.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+            fig_cv.add_hline(y=perf['cv_mean'], line_dash="dash", line_color="#e53935",
+                annotation_text=f"Mean: {perf['cv_mean']*100:.1f}%")
+            fig_cv.update_layout(height=300, margin=dict(t=10,b=10),
+                coloraxis_showscale=False, plot_bgcolor='white', paper_bgcolor='white')
+            st.plotly_chart(fig_cv, use_container_width=True)
+
+        st.divider()
+        st.markdown("#### 📈 Residuals vs Predicted")
+        fig_rv = go.Figure()
+        fig_rv.add_trace(go.Scatter(x=perf['y_pred'], y=perf['residuals'],
+            mode='markers', marker=dict(color='#1565c0', opacity=0.4, size=4)))
+        fig_rv.add_hline(y=0, line_dash="dash", line_color="#e53935", line_width=2)
+        fig_rv.update_layout(height=260, margin=dict(t=10,b=10),
+            xaxis_title="Predicted Yield (t/ha)", yaxis_title="Residual",
+            plot_bgcolor='white', paper_bgcolor='white', showlegend=False)
+        st.plotly_chart(fig_rv, use_container_width=True)
+        st.caption("Good model = points randomly scattered around 0")
+
+        st.divider()
+        st.markdown("#### Model Details")
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            st.markdown(f"- **Algorithm:** Random Forest Regressor")
+            st.markdown(f"- **Trees:** 150 estimators")
+            st.markdown(f"- **Split:** 80% train / 20% test")
+            st.markdown(f"- **Train records:** {metrics['train_size']:,}")
+        with col_d2:
+            st.markdown(f"- **Test records:** {metrics['test_size']:,}")
+            st.markdown(f"- **Dataset:** India Crop Yield (real)")
+            st.markdown(f"- **Target:** Yield (tons/hectare)")
+            st.markdown(f"- **Features:** Crop, Season, State, Area, Rainfall, Fertilizer, Pesticide")
+
 
 # ════════════════════════════════════════════════════════════
 # TAB 5 — CROP DISEASE DETECTION
@@ -284,7 +445,7 @@ with tab5:
         analyze_btn = st.button("🔬 Analyze Disease", use_container_width=True, type="primary", disabled=uploaded is None)
 
         if uploaded:
-            st.image(uploaded, caption="Uploaded image", use_container_width=True)
+            st.image(uploaded, caption="Uploaded image", use_column_width=True)
 
         st.divider()
         st.markdown("#### 💡 Tips for best results:")
