@@ -41,3 +41,7 @@ logs/
 # ─── Temp files ──────────────────────────────────────────────
 *.tmp
 *.temp
+
+echo "model_real.pkl" >> .gitignore
+echo "encoders_real.pkl" >> .gitignore
+echo "model_meta.pkl" >> .gitignore
