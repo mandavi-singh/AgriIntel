@@ -99,6 +99,7 @@ with tab2:
         weather       = get_weather(country['lat'], country['lon'])
         reddit_posts  = get_reddit_posts(country['reddit_subs'], [], limit=8)
         news_articles = get_news(country['news_query'])
+        st.write(f"News count: {len(news_articles)}")
     risk_score, risk_label = calculate_risk_score(reddit_posts, news_articles, weather)
 
     c1,c2,c3,c4,c5 = st.columns(5)
@@ -146,7 +147,7 @@ with tab2:
                 clr = "#4caf50" if "🟢" in a['sentiment'] else "#f44336" if "🔴" in a['sentiment'] else "#ff9800"
                 st.markdown(f"<div style='background:white;border-radius:8px;padding:9px;border-left:3px solid {clr};margin-bottom:7px'><small>{a['source']} • {a['sentiment']}</small><br><a href='{a['url']}' target='_blank' style='color:#1b5e20;text-decoration:none'>{a['title'][:90]}...</a></div>", unsafe_allow_html=True)
         else:
-            st.info("Add NewsAPI key in secrets.toml")
+            st.info("Add GNews API key in secrets.toml as GNEWS_API_KEY")
 
 # ════════════════════════════════════════════════════════════
 # TAB 3 — WEATHER FORECAST
