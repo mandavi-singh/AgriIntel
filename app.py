@@ -98,9 +98,9 @@ with tab2:
     with st.spinner("Fetching live data..."):
         weather       = get_weather(country['lat'], country['lon'])
         reddit_posts  = get_reddit_posts(country['reddit_subs'], [], limit=8)
-        news_articles = get_news(country['news_query'])
+        
         st.write(f"Debug: {len(news_articles)} articles")
-    risk_score, risk_label = calculate_risk_score(reddit_posts, news_articles, weather)
+    risk_score, risk_label = calculate_risk_score(reddit_posts, [], weather)
 
     c1,c2,c3,c4,c5 = st.columns(5)
     for col, label, val, unit in [
@@ -140,15 +140,7 @@ with tab2:
                 st.markdown(f"<div style='background:white;border-radius:8px;padding:9px;border-left:3px solid {clr};margin-bottom:7px'><small>r/{p['subreddit']} • {p['sentiment']}</small><br><a href='{p['url']}' target='_blank' style='color:#1b5e20;text-decoration:none'>{p['title'][:90]}...</a></div>", unsafe_allow_html=True)
         else:
             st.info("Add Reddit API keys in secrets.toml")
-    with col_n:
-        st.markdown("#### 📰 News")
-        if news_articles:
-            for a in news_articles[:5]:
-                clr = "#4caf50" if "🟢" in a['sentiment'] else "#f44336" if "🔴" in a['sentiment'] else "#ff9800"
-                st.markdown(f"<div style='background:white;border-radius:8px;padding:9px;border-left:3px solid {clr};margin-bottom:7px'><small>{a['source']} • {a['sentiment']}</small><br><a href='{a['url']}' target='_blank' style='color:#1b5e20;text-decoration:none'>{a['title'][:90]}...</a></div>", unsafe_allow_html=True)
-        else:
-            st.info("Add GNEWS_API_KEY in Streamlit Cloud Secrets to see live news")
-
+    
 # ════════════════════════════════════════════════════════════
 # TAB 3 — WEATHER FORECAST
 # ════════════════════════════════════════════════════════════
