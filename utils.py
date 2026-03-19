@@ -140,7 +140,7 @@ def get_reddit_posts(country_subs, keywords, limit=12):
 # ─── NEWS ────────────────────────────────────────────────────
 def get_news(query, api_key=None):
     key = api_key or get_secret("GNEWS_API_KEY")
-    if not key or key == "your_gnews_key_here":
+    if not key:
         return []
     try:
         agri_query = f"{query} agriculture farming crop"
@@ -155,8 +155,6 @@ def get_news(query, api_key=None):
         result   = []
         for a in articles:
             text = (a.get("title") or "") + " " + (a.get("description") or "")
-            if not any(kw in text.lower() for kw in AGRI_KEYWORDS):
-                continue
             sentiment = analyzer.polarity_scores(text)
             label = "Positive 🟢" if sentiment["compound"] >= 0.05 else \
                     "Negative 🔴" if sentiment["compound"] <= -0.05 else "Neutral 🟡"
