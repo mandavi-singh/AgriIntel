@@ -139,18 +139,18 @@ def get_reddit_posts(country_subs, keywords, limit=12):
 
 # ─── NEWS ────────────────────────────────────────────────────
 def get_news(query, api_key=None):
-    key = api_key or get_secret("NEWS_API_KEY")
-    if not key or key == "your_newsapi_key_here":
+    key = api_key or get_secret("GNEWS_API_KEY")
+    if not key or key == "your_gnews_key_here":
         return []
     try:
-        agri_query = f"({query}) AND (agriculture OR farming OR crop OR harvest OR yield)"
+        agri_query = f"{query} agriculture farming crop"
         url = (
-            f"https://newsapi.org/v2/everything"
+            f"https://gnews.io/api/v4/search"
             f"?q={requests.utils.quote(agri_query)}"
-            f"&language=en&sortBy=publishedAt&pageSize=10"
-            f"&apiKey={key}"
+            f"&lang=en&max=10"
+            f"&token={key}"
         )
-        r        = requests.get(url, timeout=8)
+        r        = requests.get(url, timeout=10)
         articles = r.json().get("articles", [])
         result   = []
         for a in articles:
@@ -172,7 +172,6 @@ def get_news(query, api_key=None):
         return result
     except Exception:
         return []
-
 
 # ─── RISK SCORE ──────────────────────────────────────────────
 def calculate_risk_score(reddit_posts, news_articles, weather):
