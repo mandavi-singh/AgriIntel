@@ -147,7 +147,7 @@ with tab2:
                 clr = "#4caf50" if "🟢" in a['sentiment'] else "#f44336" if "🔴" in a['sentiment'] else "#ff9800"
                 st.markdown(f"<div style='background:white;border-radius:8px;padding:9px;border-left:3px solid {clr};margin-bottom:7px'><small>{a['source']} • {a['sentiment']}</small><br><a href='{a['url']}' target='_blank' style='color:#1b5e20;text-decoration:none'>{a['title'][:90]}...</a></div>", unsafe_allow_html=True)
         else:
-            st.info("Add GNews API key in secrets.toml as GNEWS_API_KEY")
+            st.info("Add GNEWS_API_KEY in Streamlit Cloud Secrets to see live news")
 
 # ════════════════════════════════════════════════════════════
 # TAB 3 — WEATHER FORECAST

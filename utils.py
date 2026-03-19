@@ -143,16 +143,16 @@ def get_news(query, api_key=None):
     if not key:
         return []
     try:
-        agri_query = f"{query} agriculture farming crop"
         url = (
             f"https://gnews.io/api/v4/search"
-            f"?q={requests.utils.quote(agri_query)}"
+            f"?q={requests.utils.quote(query)}"
             f"&lang=en&max=10"
             f"&token={key}"
         )
-        r        = requests.get(url, timeout=10)
-        articles = r.json().get("articles", [])
-        result   = []
+        r = requests.get(url, timeout=10)
+        data = r.json()
+        articles = data.get("articles", [])
+        result = []
         for a in articles:
             text = (a.get("title") or "") + " " + (a.get("description") or "")
             sentiment = analyzer.polarity_scores(text)
@@ -168,9 +168,8 @@ def get_news(query, api_key=None):
                 "publishedAt": a.get("publishedAt", ""),
             })
         return result
-    except Exception:
+    except Exception as e:
         return []
-
 # ─── RISK SCORE ──────────────────────────────────────────────
 def calculate_risk_score(reddit_posts, news_articles, weather):
     scores = []
