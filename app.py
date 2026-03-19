@@ -99,7 +99,7 @@ with tab2:
         weather       = get_weather(country['lat'], country['lon'])
         reddit_posts  = get_reddit_posts(country['reddit_subs'], [], limit=8)
         
-        st.write(f"Debug: {len(news_articles)} articles")
+        
     risk_score, risk_label = calculate_risk_score(reddit_posts, [], weather)
 
     c1,c2,c3,c4,c5 = st.columns(5)
