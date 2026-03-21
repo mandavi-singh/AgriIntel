@@ -137,39 +137,7 @@ def get_reddit_posts(country_subs, keywords, limit=12):
         return []
 
 
-# ─── NEWS ────────────────────────────────────────────────────
-def get_news(query, api_key=None):
-    key = api_key or get_secret("GNEWS_API_KEY")
-    if not key:
-        return []
-    try:
-        url = (
-            f"https://gnews.io/api/v4/search"
-            f"?q={requests.utils.quote(query)}"
-            f"&lang=en&max=10"
-            f"&token={key}"
-        )
-        r = requests.get(url, timeout=10)
-        data = r.json()
-        articles = data.get("articles", [])
-        result = []
-        for a in articles:
-            text = (a.get("title") or "") + " " + (a.get("description") or "")
-            sentiment = analyzer.polarity_scores(text)
-            label = "Positive 🟢" if sentiment["compound"] >= 0.05 else \
-                    "Negative 🔴" if sentiment["compound"] <= -0.05 else "Neutral 🟡"
-            result.append({
-                "title":       a.get("title", ""),
-                "description": a.get("description", ""),
-                "url":         a.get("url", ""),
-                "source":      a.get("source", {}).get("name", ""),
-                "sentiment":   label,
-                "compound":    sentiment["compound"],
-                "publishedAt": a.get("publishedAt", ""),
-            })
-        return result
-    except Exception as e:
-        return []
+
 # ─── RISK SCORE ──────────────────────────────────────────────
 def calculate_risk_score(reddit_posts, news_articles, weather):
     scores = []
