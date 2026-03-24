@@ -6,14 +6,54 @@ import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 
-from country_data  import COUNTRY_DATA
-from utils         import (get_weather, get_forecast, get_reddit_posts, get_news,
-                            calculate_risk_score, ask_gemini,
-                            detect_crop_disease, get_mandi_prices, get_all_mandi_crops)
-from ml_model      import predict_yield, get_averages, get_options, get_metrics, get_eda_data, get_performance_data
-from crop_calendar import get_calendar, get_available_crops, get_available_seasons
-from india_states  import INDIA_STATES
-from yield_history import get_yield_history, get_available_crops_history
+try:
+    from country_data import COUNTRY_DATA
+    from utils import (
+        get_weather,
+        get_forecast,
+        get_reddit_posts,
+        get_news,
+        calculate_risk_score,
+        ask_gemini,
+        detect_crop_disease,
+        get_mandi_prices,
+        get_all_mandi_crops,
+    )
+    from ml_model import (
+        predict_yield,
+        get_averages,
+        get_options,
+        get_metrics,
+        get_eda_data,
+        get_performance_data,
+    )
+    from crop_calendar import get_calendar, get_available_crops, get_available_seasons
+    from india_states import INDIA_STATES
+    from yield_history import get_yield_history, get_available_crops_history
+except ImportError:
+    from agri_app.country_data import COUNTRY_DATA
+    from agri_app.utils import (
+        get_weather,
+        get_forecast,
+        get_reddit_posts,
+        get_news,
+        calculate_risk_score,
+        ask_gemini,
+        detect_crop_disease,
+        get_mandi_prices,
+        get_all_mandi_crops,
+    )
+    from agri_app.ml_model import (
+        predict_yield,
+        get_averages,
+        get_options,
+        get_metrics,
+        get_eda_data,
+        get_performance_data,
+    )
+    from agri_app.crop_calendar import get_calendar, get_available_crops, get_available_seasons
+    from agri_app.india_states import INDIA_STATES
+    from agri_app.yield_history import get_yield_history, get_available_crops_history
 
 # ─── PAGE CONFIG ─────────────────────────────────────────────
 st.set_page_config(page_title="🌾 AgriIntel", page_icon="🌾", layout="wide", initial_sidebar_state="expanded")

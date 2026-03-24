@@ -137,6 +137,52 @@ def get_reddit_posts(country_subs, keywords, limit=12):
         return []
 
 
+@st.cache_data(ttl=1800)
+def get_news(query, limit=8):
+    try:
+        api_key = get_secret("NEWS_API_KEY")
+        if not api_key:
+            return []
+
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": query,
+            "apiKey": api_key,
+            "language": "en",
+            "sortBy": "publishedAt",
+            "pageSize": limit,
+        }
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        articles = []
+        for article in data.get("articles", []):
+            text = " ".join(
+                filter(
+                    None,
+                    [
+                        article.get("title", ""),
+                        article.get("description", ""),
+                        article.get("content", ""),
+                    ],
+                )
+            )
+            sentiment = analyzer.polarity_scores(text)
+            articles.append(
+                {
+                    "title": article.get("title", "Untitled"),
+                    "source": article.get("source", {}).get("name", "Unknown"),
+                    "url": article.get("url", ""),
+                    "published_at": article.get("publishedAt"),
+                    "compound": sentiment["compound"],
+                }
+            )
+        return articles
+    except Exception:
+        return []
+
+
 
 # ─── RISK SCORE ──────────────────────────────────────────────
 def calculate_risk_score(reddit_posts, news_articles, weather):
